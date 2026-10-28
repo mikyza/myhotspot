@@ -10,6 +10,59 @@ const ICON = {
   card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>', plug: '<path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0zM12 17v4"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>', grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
 };
+
+// ---------- polish layer: theme, motion, skeletons, live data ----------
+(function injectStyle() {
+  const st = document.createElement('style'); st.textContent = `
+  :root[data-theme=dark]{--ground:#0a151d;--surface:#101e29;--ink:#e7eff5;--muted:#93a4b3;--line:#223545;--soft:#162838;--deep:#061219;--deep-2:#0d2230;--accent:#19c98a;--accent-ink:#7be8bd;--accent-bg:#0f3327;--warn:#f0b04a;--warn-bg:#3a2a0c;--bad:#ff8a8a;--bad-bg:#3b1717;--info:#7fbbee;--info-bg:#112a3f}
+  :root[data-theme=light]{--ground:#f2f5f7;--surface:#fff;--ink:#12202f;--muted:#5a6978;--line:#dde4ea;--soft:#eaf0f4;--accent:#00a86b;--accent-ink:#055c3b;--accent-bg:#e1f6ec;--warn:#b36b00;--warn-bg:#fff2d9;--bad:#c23a3a;--bad-bg:#fde8e8;--info:#1f6fb2;--info-bg:#e4f0fa}
+  #main>*{animation:fadeUp .35s cubic-bezier(.2,.8,.2,1) both}
+  #main>*:nth-child(2){animation-delay:.04s}#main>*:nth-child(3){animation-delay:.08s}#main>*:nth-child(4){animation-delay:.12s}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .card{transition:box-shadow .2s,border-color .2s}.stat:hover{box-shadow:0 6px 22px rgba(0,0,0,.07);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+  .sk{display:block;border-radius:8px;background:linear-gradient(90deg,var(--soft) 25%,color-mix(in srgb,var(--soft) 60%,var(--surface)) 50%,var(--soft) 75%);background-size:200% 100%;animation:shim 1.3s linear infinite}
+  @keyframes shim{to{background-position:-200% 0}}
+  .delta{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:99px}
+  .delta.up{background:var(--accent-bg);color:var(--accent-ink)}.delta.down{background:var(--bad-bg);color:var(--bad)}.delta.flat{background:var(--soft);color:var(--muted)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .chart .bar{transform-box:fill-box;transform-origin:bottom;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes grow{from{transform:scaleY(.05)}to{transform:none}}
+  #tip{position:fixed;z-index:60;pointer-events:none;background:var(--deep);color:#fff;padding:6px 10px;border-radius:8px;font-size:12.5px;opacity:0;transition:opacity .12s;white-space:nowrap}
+  #tip.on{opacity:1}
+  #toast{display:flex;align-items:center;gap:8px}#toast.ok:before{content:"\\2713";color:#17d68f;font-weight:700}#toast.bad:before{content:"!";color:#ff8a8a;font-weight:700}
+  .pw{position:relative}.pw input{padding-right:64px}.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--info);font-weight:600;cursor:pointer;padding:6px 8px}
+  .meter-pw{height:5px;border-radius:3px;background:var(--soft);margin-top:7px;overflow:hidden}.meter-pw i{display:block;height:100%;width:0;transition:width .25s,background .25s}
+  .offline{position:fixed;top:0;left:0;right:0;background:var(--bad);color:#fff;text-align:center;padding:6px;font-size:13.5px;z-index:70}
+  .iconbtn{background:none;border:0;color:#8fb0c0;cursor:pointer;padding:0;text-decoration:underline;margin-top:8px;display:block}
+  .tb-r{margin-left:auto}.sticky-th th{position:sticky;top:0;background:var(--surface)}
+  .empty svg{width:42px;height:42px;stroke:var(--muted);fill:none;stroke-width:1.5;margin-bottom:8px;opacity:.7}
+  .btn{transition:transform .08s,filter .15s}.btn:active:not(:disabled){transform:scale(.97)}
+  tbody tr{transition:background .12s}
+  `; document.head.appendChild(st);
+})();
+const THEMES = ['auto', 'light', 'dark'];
+const getTheme = () => { try { return localStorage.getItem('theme') || 'auto'; } catch { return 'auto'; } };
+const applyTheme = t => { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem('theme', t); } catch { /* private mode */ } };
+applyTheme(getTheme());
+const skel = (rows = 5) => `<div style="display:grid;gap:12px;padding:6px 0">${Array.from({ length: rows }, (_, i) => `<i class="sk" style="height:${i ? 18 : 28}px;width:${i ? 100 - i * 7 : 40}%"></i>`).join('')}</div>`;
+const skelPage = () => `<div class="card"><i class="sk" style="height:44px;width:30%;margin-bottom:16px"></i><i class="sk" style="height:150px"></i></div><div class="grid g4" style="margin-top:16px">${'<div class="card stat"><i class="sk" style="height:14px;width:50%"></i><i class="sk" style="height:28px;width:70%;margin-top:10px"></i></div>'.repeat(4)}</div>`;
+function countUp(el, to, fmt = n => Math.round(n).toLocaleString('en-KE')) {
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches || to < 2) { el.textContent = fmt(to); return; }
+  const t0 = performance.now(), dur = 700; const tick = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = fmt(to * e); if (p < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+}
+const animateNums = root => root.querySelectorAll('[data-count]').forEach(el => countUp(el, Number(el.dataset.count)));
+const delta = (now, prev) => { if (!prev && !now) return '<span class="delta flat">no change</span>'; if (!prev) return '<span class="delta up">new</span>'; const p = Math.round((now - prev) / prev * 100); return `<span class="delta ${p > 0 ? 'up' : p < 0 ? 'down' : 'flat'}">${p > 0 ? '\\u25B2' : p < 0 ? '\\u25BC' : '\\u2022'} ${Math.abs(p)}% vs yesterday</span>`; };
+const greet = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+// chart tooltip that follows the pointer
+document.body.insertAdjacentHTML('beforeend', '<div id="tip" role="presentation"></div>');
+document.addEventListener('mousemove', e => { const r = e.target.closest && e.target.closest('rect.bar'); const t = $('#tip'); if (!r) { t.classList.remove('on'); return; } const ti = r.querySelector('title'); if (ti && ti.textContent) { r.dataset.t = ti.textContent; ti.textContent = ''; } t.textContent = r.dataset.t || ''; t.style.left = Math.min(innerWidth - 220, e.clientX + 12) + 'px'; t.style.top = e.clientY - 38 + 'px'; t.classList.add('on'); });
+addEventListener('offline', () => { document.body.insertAdjacentHTML('afterbegin', '<div class="offline" id="off">You are offline. Changes will not save until you reconnect.</div>'); });
+addEventListener('online', () => { const o = $('#off'); if (o) o.remove(); toast('Back online', 'ok'); });
+addEventListener('keydown', e => { if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { const q = $('#q'); if (q) { e.preventDefault(); q.focus(); } } });
+const csvOut = (name, head, rows) => { const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"'; const blob = new Blob(['\\uFEFF' + [head, ...rows].map(r => r.map(q).join(',')).join('\\n')], { type: 'text/csv' }); const u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = name + '-' + new Date().toISOString().slice(0, 10) + '.csv'; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); };
+let liveTimer = null, liveFn = null; const stopLive = () => { clearInterval(liveTimer); liveTimer = null; liveFn = null; };
+document.addEventListener('visibilitychange', () => { if (!document.hidden && liveFn) liveFn(); });
+
 const ico = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
 
 // ---------- helpers ----------
@@ -20,7 +73,7 @@ async function api(path, method = 'GET', body) {
   if (!r.ok && !j.error) j.error = 'Request failed (' + r.status + ')';
   j.ok = r.ok && j.ok !== false; return j;
 }
-const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2800); };
+const toast = (m, kind = '') => { const t = $('#toast'); t.className = kind; t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2800); };
 const money = (n, cur = 'KES') => cur + ' ' + Math.round(Number(n) || 0).toLocaleString('en-KE');
 const D = v => { const d = new Date(v); return isNaN(d) ? null : d; };
 const date = v => { const d = D(v); return d ? d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '–'; };
@@ -60,15 +113,18 @@ function authView(mode) {
     <label class="f"><span>Your name</span><input id="name" autocomplete="name"></label>
     <label class="f"><span>M-Pesa phone</span><input id="phone" inputmode="tel" autocomplete="tel" placeholder="0712345678"><small>Used for billing receipts and reminders.</small></label>` : ''}
     <label class="f"><span>${reg ? 'Email' : 'Email or phone'}</span><input id="email" ${reg ? 'type="email"' : 'type="text"'} autocomplete="${reg ? 'email' : 'username'}"></label>
-    <label class="f"><span>Password</span><input id="password" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}">${reg ? '<small>At least 8 characters.</small>' : ''}</label>
+    <label class="f"><span>Password</span><div class="pw"><input id="password" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}"><button type="button" id="eye" aria-label="Show password">Show</button></div>${reg ? '<div class="meter-pw"><i id="pwm"></i></div><small id="pwt">At least 8 characters.</small>' : ''}</label>
     <button class="btn block" id="go">${reg ? 'Create account' : 'Sign in'}</button></div></div></section></div>`;
   $('#tLogin').onclick = () => { location.hash = '#/login'; }; $('#tReg').onclick = () => { location.hash = '#/register'; };
   const submit = async () => {
     const b = { email: $('#email').value, password: $('#password').value }; if (reg) Object.assign(b, { business: $('#business').value, name: $('#name').value, phone: $('#phone').value });
-    const btn = $('#go'); btn.disabled = true; const r = await api(reg ? '/api/register' : '/api/login', 'POST', b); btn.disabled = false;
+    const btn = $('#go'); btn.disabled = true; const t0 = btn.textContent; btn.innerHTML = '<span class="spin"></span> Please wait'; const r = await api(reg ? '/api/register' : '/api/login', 'POST', b); btn.disabled = false; btn.textContent = t0;
     if (!r.ok) { $('#msg').innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
     ME = null; await loadMe(); location.hash = ME && ME.role === 'admin' ? '#/admin' : reg ? '#/isp/connect' : '#/isp'; route();
   };
+  $('#eye').onclick = () => { const i = $('#password'), s = i.type === 'password'; i.type = s ? 'text' : 'password'; $('#eye').textContent = s ? 'Hide' : 'Show'; };
+  if (reg) $('#password').oninput = e => { const v = e.target.value; let s = 0; if (v.length >= 8) s++; if (v.length >= 12) s++; if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++; if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) s++; const m = $('#pwm'); m.style.width = (v ? Math.max(15, s * 25) : 0) + '%'; m.style.background = s < 2 ? 'var(--bad)' : s < 3 ? 'var(--warn)' : 'var(--accent)'; $('#pwt').textContent = v ? ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'][s] : 'At least 8 characters.'; };
+  $('#email').focus();
   $('#go').onclick = submit; $('#form').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 
@@ -77,12 +133,13 @@ function shell(kind, items, active, who, content) {
   const base = kind === 'admin' ? '#/admin' : '#/isp';
   app.innerHTML = `<div class="shell"><aside class="side"><a class="brand" href="${base}"><span class="logo"><i></i><i></i><i></i></span>Hotspot Cloud</a>
     <nav aria-label="Main">${items.map(([k, label, ic]) => `<a href="${base}${k ? '/' + k : ''}" ${k === active ? 'aria-current="page"' : ''}>${ico(ic)}${esc(label)}</a>`).join('')}</nav>
-    <div class="who"><b>${esc(who)}</b><button id="out">Sign out</button></div></aside><main id="main" tabindex="-1">${content}</main></div>`;
-  $('#out').onclick = async () => { await api('/api/logout', 'POST'); ME = null; location.hash = '#/login'; };
+    <div class="who"><b>${esc(who)}</b><button class="iconbtn" id="th">Theme: ${getTheme()}</button><button class="iconbtn" id="out">Sign out</button></div></aside><main id="main" tabindex="-1">${content}</main></div>`;
+  $('#th').onclick = e => { const t = THEMES[(THEMES.indexOf(getTheme()) + 1) % 3]; applyTheme(t); e.target.textContent = 'Theme: ' + t; };
+  $('#out').onclick = async () => { stopLive(); await api('/api/logout', 'POST'); ME = null; location.hash = '#/login'; };
 }
 const ISP_NAV = [['', 'Overview', 'home'], ['customers', 'Connect codes', 'users'], ['payments', 'Payments', 'cash'], ['accounts', 'Monthly accounts', 'cal'], ['packages', 'Packages', 'box'], ['sms', 'SMS log', 'msg'], ['billing', 'Subscription', 'card'], ['connect', 'Connect hotspot', 'plug'], ['account', 'Account', 'cog']];
 const ADM_NAV = [['', 'Overview', 'home'], ['isps', 'ISPs', 'users'], ['subs', 'Subscription payments', 'cash'], ['new', 'Add an ISP', 'plug']];
-const loading = '<div class="empty"><span class="spin"></span></div>';
+const loading = skel(6);
 
 // ---------- data tables ----------
 const COLDEFS = {
@@ -95,15 +152,16 @@ const COLDEFS = {
 const dur = m => { m = Number(m) || 0; return m >= 1440 && m % 1440 === 0 ? m / 1440 + (m === 1440 ? ' day' : ' days') : m >= 60 && m % 60 === 0 ? m / 60 + (m === 60 ? ' hour' : ' hours') : m + ' min'; };
 async function dataTable(host, base, c) {
   const def = COLDEFS[c]; let page = 1, q = '', status = '', timer;
-  host.innerHTML = `<div class="card"><div class="toolbar"><input type="search" id="q" placeholder="Search" aria-label="Search">${def.filters.length ? `<select id="st" aria-label="Status">${def.filters.map(f => `<option value="${f}">${f ? f[0].toUpperCase() + f.slice(1) : 'All statuses'}</option>`).join('')}</select>` : ''}</div><div id="tb">${loading}</div></div>`;
+  host.innerHTML = `<div class="card"><div class="toolbar"><input type="search" id="q" placeholder="Search  ( press / )" aria-label="Search">${def.filters.length ? `<select id="st" aria-label="Status">${def.filters.map(f => `<option value="${f}">${f ? f[0].toUpperCase() + f.slice(1) : 'All statuses'}</option>`).join('')}</select>` : ''}<button class="btn sec sm tb-r" id="csv">Export CSV</button></div><div id="tb">${loading}</div></div>`;
   const load = async () => {
     const r = await api(`${base}/${c}?page=${page}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`);
     if (!r.ok) { $('#tb', host).innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
-    if (!r.items.length) { $('#tb', host).innerHTML = `<div class="empty"><b>${q || status ? 'Nothing matches' : 'Nothing here yet'}</b>${q || status ? 'Try a different search.' : esc(def.note) + ' Once your hotspot syncs, it appears here.'}</div>`; return; }
+    if (!r.items.length) { $('#tb', host).innerHTML = `<div class="empty">${ico('box').replace('<svg','<svg')}<b>${q || status ? 'Nothing matches' : 'Nothing here yet'}</b>${q || status ? 'Try a different search.' : esc(def.note) + ' Once your hotspot syncs, it appears here.'}</div>`; return; }
     $('#tb', host).innerHTML = `<div class="tbl-wrap"><table><thead><tr>${def.cols.map(x => `<th>${x[0]}</th>`).join('')}</tr></thead><tbody>${r.items.map(row => `<tr>${def.cols.map(x => `<td>${x[1](row)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
       <div class="pager"><span>${r.total.toLocaleString()} total</span><span class="actions"><button class="btn sec sm" id="pv" ${page <= 1 ? 'disabled' : ''}>Previous</button><span style="align-self:center">Page ${r.page} of ${r.pages}</span><button class="btn sec sm" id="nx" ${page >= r.pages ? 'disabled' : ''}>Next</button></span></div>`;
     $('#pv', host).onclick = () => { page--; load(); }; $('#nx', host).onclick = () => { page++; load(); };
   };
+  $('#csv', host).onclick = async () => { const b = $('#csv', host); b.disabled = true; const r = await api(`${base}/${c}?page=1&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`); b.disabled = false; if (!r.ok || !r.items.length) return toast('Nothing to export', 'bad'); const text = h => String(h).replace(/<[^>]*>/g, ''); csvOut(c, def.cols.map(x => x[0]), r.items.map(row => def.cols.map(x => text(x[1](row)).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }[m]))))); toast('Exported this page', 'ok'); };
   $('#q', host).oninput = e => { clearTimeout(timer); timer = setTimeout(() => { q = e.target.value; page = 1; load(); }, 300); };
   const st = $('#st', host); if (st) st.onchange = e => { status = e.target.value; page = 1; load(); };
   load();
@@ -123,14 +181,17 @@ function statusLine(o) {
 async function ispOverview(main, o, isAdmin) {
   const cur = o.currency || 'KES', hb = o.heartbeat || {}, rev = o.sum;
   main.innerHTML = `${isAdmin ? '' : licenseBanner(o.license)}
-  <div class="card"><div class="hero"><div><div class="muted" style="font-weight:550;margin-bottom:8px">Sales today</div><div class="big"><span class="cur">${esc(cur)}</span>${Math.round(rev.today ?? o.sum.today).toLocaleString('en-KE')}</div><div style="margin-top:12px">${statusLine(o)}</div></div><div>${bars(o.series, cur)}</div></div></div>
-  <div class="grid g4" style="margin-top:16px"><div class="card stat"><div class="k">Last 7 days</div><div class="v">${money(rev.week ?? o.sum.week, cur)}</div></div><div class="card stat"><div class="k">Last 30 days</div><div class="v">${money(rev.month ?? o.sum.month, cur)}</div></div><div class="card stat"><div class="k">All time</div><div class="v">${money(rev.all ?? o.sum.all, cur)}</div><div class="s">${o.paidSales.toLocaleString()} paid sales</div></div><div class="card stat"><div class="k">Connect codes</div><div class="v">${o.counts.vouchers.toLocaleString()}</div><div class="s">${o.counts.accounts} monthly accounts</div></div></div>
+  <div class="card"><div class="hero"><div><div class="muted" style="font-weight:550;margin-bottom:8px">Sales today</div><div class="big"><span class="cur">${esc(cur)}</span><span data-count="${Math.round(rev.today ?? o.sum.today)}">0</span></div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">${delta(o.series.at(-1)?.amount || 0, o.series.at(-2)?.amount || 0)}${statusLine(o)}</div></div><div>${bars(o.series, cur)}</div></div></div>
+  <div class="grid g4" style="margin-top:16px"><div class="card stat"><div class="k">Last 7 days</div><div class="v">${esc(cur)} <span data-count="${Math.round(rev.week ?? o.sum.week)}">0</span></div></div><div class="card stat"><div class="k">Last 30 days</div><div class="v">${esc(cur)} <span data-count="${Math.round(rev.month ?? o.sum.month)}">0</span></div></div><div class="card stat"><div class="k">All time</div><div class="v">${esc(cur)} <span data-count="${Math.round(rev.all ?? o.sum.all)}">0</span></div><div class="s">${o.paidSales.toLocaleString()} paid sales</div></div><div class="card stat"><div class="k">Connect codes</div><div class="v"><span data-count="${o.counts.vouchers}">0</span></div><div class="s">${o.counts.accounts} monthly accounts</div></div></div>
   <div class="grid g2" style="margin-top:16px"><div class="card"><h3>Best selling packages</h3>${o.byPackage.length ? `<div class="bl">${(m => o.byPackage.map(p => `<div><div class="row"><span>${esc(p.name)}</span><b>${money(p.amount, cur)}</b></div><div class="meter"><i style="width:${Math.round(p.amount / m * 100)}%"></i></div></div>`).join(''))(o.byPackage[0].amount || 1)}</div>` : '<div class="empty" style="padding:18px">Sales will rank here.</div>'}</div>
   <div class="card"><h3>Your hotspot</h3><dl class="kv"><dt>Mode</dt><dd>${esc(hb.mode ? ({ gateway: 'Linux gateway', mikrotik: 'MikroTik', none: 'Not set up' }[hb.mode] || hb.mode) : '–')}</dd><dt>Software</dt><dd>${esc(hb.version ? 'v' + hb.version + (hb.os ? ' on ' + hb.os : '') : '–')}</dd><dt>Pending payments</dt><dd>${o.counts.pending}</dd><dt>Packages</dt><dd>${o.counts.packages}</dd><dt>Subscription</dt><dd>${stateChip(o.state)} <span class="muted sm">${esc(left(o.license.valid_until))}</span></dd>${hb.demo_mode ? '<dt>Payments</dt><dd><span class="chip warn">Demo mode is on</span></dd>' : ''}</dl></div></div>`;
+  if (!main.dataset.seen) { main.dataset.seen = '1'; animateNums(main); } else main.querySelectorAll('[data-count]').forEach(el => { el.textContent = Math.round(Number(el.dataset.count)).toLocaleString('en-KE'); });
 }
 async function ispPage(page) {
   const main = $('#main');
-  if (page === '') { main.insertAdjacentHTML('afterbegin', loading); const o = await api('/api/isp/overview'); if (!o.ok) return main.innerHTML = `<div class="err">${esc(o.error)}</div>`; main.innerHTML = `<div class="top"><div><h1>Overview</h1><p>${esc(ME.isp.business)}</p></div></div><div id="ov"></div>`; return ispOverview($('#ov'), o, false); }
+  if (page === '') { main.innerHTML = skelPage(); const o = await api('/api/isp/overview'); if (!o.ok) return main.innerHTML = `<div class="err">${esc(o.error)}</div>`; main.innerHTML = `<div class="top"><div><h1>${greet()}, ${esc((ME.isp.name || ME.isp.business).split(' ')[0])}</h1><p>${esc(ME.isp.business)} <span class="live" id="lv"><i class="dot pulse" style="color:var(--accent)"></i>Live</span></p></div></div><div id="ov"></div>`; ispOverview($('#ov'), o, false);
+    stopLive(); const refresh = async () => { if (document.hidden || !$('#ov')) return stopLive(); const n = await api('/api/isp/overview'); if (n.ok && $('#ov')) { await ispOverview($('#ov'), n, false); const l = $('#lv'); if (l) l.lastChild.textContent = 'Live · updated ' + new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }); } };
+    liveFn = refresh; liveTimer = setInterval(refresh, 30000); return; }
   const map = { customers: 'vouchers', payments: 'payments', accounts: 'accounts', packages: 'packages', sms: 'sms' };
   if (map[page]) { const d = COLDEFS[map[page]]; main.innerHTML = `<div class="top"><div><h1>${d.title}</h1><p>${esc(d.note)}</p></div></div><div id="tbl"></div>`; return dataTable($('#tbl'), '/api/isp/data', map[page]); }
   if (page === 'billing') return billingPage(main);
@@ -155,7 +216,7 @@ async function billingPage(main) {
     for (let i = 0; i < 40; i++) {
       await new Promise(r => setTimeout(r, 3000)); if (!$('#payMsg')) return;
       const s = await api('/api/isp/pay/' + r.ref);
-      if (s.status === 'paid') { toast('Payment received'); await loadMe(); return billingPage($('#main')); }
+      if (s.status === 'paid') { toast('Payment received', 'ok'); await loadMe(); return billingPage($('#main')); }
       if (s.status === 'failed') { btn.disabled = false; $('#payMsg').innerHTML = '<div class="err">The payment was cancelled or failed. Try again.</div>'; return; }
     }
     btn.disabled = false; $('#payMsg').innerHTML = '<div class="err">No confirmation yet. If money was taken, it will appear here shortly.</div>';
@@ -209,7 +270,7 @@ async function adminPage(parts) {
   } else if (page === 'new') {
     main.innerHTML = `<div class="top"><div><h1>Add an ISP</h1><p>Create an account for a customer who bought the software from you.</p></div></div><div class="card" style="max-width:520px"><div id="m"></div>
     <label class="f"><span>Business name</span><input id="b"></label><label class="f"><span>Contact name</span><input id="n"></label><label class="f"><span>Email</span><input id="e" type="email"></label><label class="f"><span>Phone</span><input id="p" placeholder="0712345678"></label><label class="f"><span>Temporary password</span><input id="w" type="text"></label><label class="f"><span>Trial days</span><input id="d" type="number" value="${CFG.trial_days || 14}"></label><button class="btn" id="go">Create ISP</button></div>`;
-    $('#go').onclick = async () => { const r = await api('/api/admin/isps', 'POST', { business: $('#b').value, name: $('#n').value, email: $('#e').value, phone: $('#p').value, password: $('#w').value, days: $('#d').value }); if (!r.ok) return $('#m').innerHTML = `<div class="err">${esc(r.error)}</div>`; toast('ISP created'); location.hash = '#/admin/isp/' + r.id; };
+    $('#go').onclick = async () => { const r = await api('/api/admin/isps', 'POST', { business: $('#b').value, name: $('#n').value, email: $('#e').value, phone: $('#p').value, password: $('#w').value, days: $('#d').value }); if (!r.ok) return $('#m').innerHTML = `<div class="err">${esc(r.error)}</div>`; toast('ISP created', 'ok'); location.hash = '#/admin/isp/' + r.id; };
   } else if (page === 'isp') await adminIsp(main, parts[1], parts[2] || 'overview');
   else main.innerHTML = '<div class="empty"><b>Page not found</b></div>';
 }
@@ -221,7 +282,7 @@ async function adminIsp(main, id, tab) {
   const body = $('#tabBody');
   if (tab === 'overview') return ispOverview(body, r.overview, true);
   if (COLDEFS[tab]) { body.innerHTML = '<div id="tbl"></div>'; return dataTable($('#tbl'), `/api/admin/isps/${encodeURIComponent(id)}/data`, tab); }
-  const act = async (a, extra = {}) => { const x = await api(`/api/admin/isps/${encodeURIComponent(id)}/action`, 'POST', { action: a, ...extra }); if (!x.ok) return x.error; toast(x.message || 'Done'); if (a === 'delete') location.hash = '#/admin/isps'; else adminIsp($('#main'), id, 'billing'); return true; };
+  const act = async (a, extra = {}) => { const x = await api(`/api/admin/isps/${encodeURIComponent(id)}/action`, 'POST', { action: a, ...extra }); if (!x.ok) return x.error; toast(x.message || 'Done', 'ok'); if (a === 'delete') location.hash = '#/admin/isps'; else adminIsp($('#main'), id, 'billing'); return true; };
   body.innerHTML = `<div class="grid g2"><div class="card"><h3>Licence</h3><dl class="kv"><dt>Plan</dt><dd>${esc(i.plan)}</dd><dt>Valid until</dt><dd>${date(i.valid_until)} <span class="muted sm">${esc(left(i.valid_until))}</span></dd><dt>Price</dt><dd>${money(i.price || CFG.price)} ${i.price ? '(custom)' : ''}</dd><dt>Sales lock</dt><dd>${i.enforce === false ? 'Off: never paused' : 'On: sales pause when unpaid'}</dd><dt>Software</dt><dd>${esc(i.version || '–')}</dd><dt>Joined</dt><dd>${date(i.created)}</dd></dl>
   <div class="actions" style="margin-top:16px"><button class="btn sec sm" data-a="ext">Add days</button>${i.status === 'suspended' ? '<button class="btn sm" data-a="act">Reactivate</button>' : '<button class="btn danger sm" data-a="sus">Suspend</button>'}<button class="btn sec sm" data-a="enf">${i.enforce === false ? 'Turn sales lock on' : 'Turn sales lock off'}</button><button class="btn sec sm" data-a="price">Set price</button></div></div>
   <div class="card"><h3>Account controls</h3><div class="actions"><button class="btn sec sm" data-a="sms">Send SMS</button><button class="btn sec sm" data-a="pw">Reset password</button><button class="btn sec sm" data-a="key">Rotate API key</button><button class="btn danger sm" data-a="del">Delete ISP and data</button></div></div></div>
@@ -242,6 +303,7 @@ async function adminIsp(main, id, tab) {
 // ---------- router ----------
 async function loadMe() { const r = await api('/api/me'); ME = r.ok && r.role ? r : null; }
 async function route() {
+  stopLive();
   const h = (location.hash || '#/').replace(/^#\/?/, '').split('/').filter(Boolean);
   if (!ME) await loadMe();
   const root = h[0] || '';
