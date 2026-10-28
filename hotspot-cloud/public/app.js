@@ -59,7 +59,7 @@ function authView(mode) {
     <div id="msg"></div><div id="form">${reg ? `<label class="f"><span>Business name</span><input id="business" autocomplete="organization" placeholder="Mwangi Fast WiFi"></label>
     <label class="f"><span>Your name</span><input id="name" autocomplete="name"></label>
     <label class="f"><span>M-Pesa phone</span><input id="phone" inputmode="tel" autocomplete="tel" placeholder="0712345678"><small>Used for billing receipts and reminders.</small></label>` : ''}
-    <label class="f"><span>Email</span><input id="email" type="email" autocomplete="email"></label>
+    <label class="f"><span>${reg ? 'Email' : 'Email or phone'}</span><input id="email" ${reg ? 'type="email"' : 'type="text"'} autocomplete="${reg ? 'email' : 'username'}"></label>
     <label class="f"><span>Password</span><input id="password" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}">${reg ? '<small>At least 8 characters.</small>' : ''}</label>
     <button class="btn block" id="go">${reg ? 'Create account' : 'Sign in'}</button></div></div></section></div>`;
   $('#tLogin').onclick = () => { location.hash = '#/login'; }; $('#tReg').onclick = () => { location.hash = '#/register'; };
