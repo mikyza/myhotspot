@@ -15,6 +15,7 @@ const PORT = Number(env.PORT || 3000);
 const PUBLIC_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const SECRET = env.SESSION_SECRET && env.SESSION_SECRET !== 'change-me' ? env.SESSION_SECRET : (console.warn('WARNING: set SESSION_SECRET in .env (logins reset on every restart without it)'), A.rand(32));
 const PLAN_PRICE = Number(env.PLAN_PRICE_KES || 1500), PLAN_DAYS = Number(env.PLAN_DAYS || 30), TRIAL_DAYS = Number(env.TRIAL_DAYS || 14);
+const ADMIN_PHONE = S.phone254(env.ADMIN_PHONE || '0746323229'); // protected operator number
 const DAY = 86400000, TZ_MS = 3 * 3600000; // Kenya is UTC+3, no daylight saving
 const COLS = ['packages', 'vouchers', 'payments', 'accounts', 'sms'];
 const SEARCH = { vouchers: ['code', 'id', 'phone', 'package', 'mac'], payments: ['id', 'phone', 'receipt', 'package', 'code'], accounts: ['id', 'name', 'phone', 'account_id'], sms: ['phone', 'status', 'reply'], packages: ['name', 'id'] };
@@ -146,6 +147,7 @@ async function api(req, res, u) {
     if (!business || !name) return fail(res, 400, 'Enter your business and your name.');
     if (!emailOk(email)) return fail(res, 400, 'Enter a valid email address.');
     if (!phone) return fail(res, 400, 'Enter a Kenyan mobile number such as 0712345678.');
+    if (phone === ADMIN_PHONE) return fail(res, 403, 'That number is reserved.');
     if (pw.length < 8) return fail(res, 400, 'Use a password of at least 8 characters.');
     if (await db.findOne('isps', { email })) return fail(res, 409, 'That email already has an account. Sign in instead.');
     const isp = { _id: 'isp-' + A.rand(3), business, name, email, phone, pass: A.hashPw(pw), api_key: A.rand(24), status: 'active', enforce: true, plan: 'trial', valid_until: new Date(Date.now() + TRIAL_DAYS * DAY), created: new Date(), last_seen: null };
@@ -156,9 +158,10 @@ async function api(req, res, u) {
   if (p === '/api/login' && m === 'POST') {
     if (limited('login:' + ip(req), 10, 600000)) return fail(res, 429, 'Too many attempts. Wait ten minutes.');
     const b = JSON.parse((await readBody(req, 1e4)).toString() || '{}'), email = String(b.email || '').trim().toLowerCase(), pw = String(b.password || '');
-    if (env.ADMIN_EMAIL && env.ADMIN_PASSWORD && email === env.ADMIN_EMAIL.toLowerCase() && A.safeEq(pw, env.ADMIN_PASSWORD)) return send(res, 200, { ok: true, role: 'admin' }, { 'Set-Cookie': setSession(req, res, { role: 'admin', id: 'admin' }, 12 * 3600) });
+    const idPhone = S.phone254(email), isAdminId = (env.ADMIN_EMAIL && email === env.ADMIN_EMAIL.toLowerCase()) || (ADMIN_PHONE && idPhone === ADMIN_PHONE);
+    if (isAdminId && env.ADMIN_PASSWORD && A.safeEq(pw, env.ADMIN_PASSWORD)) return send(res, 200, { ok: true, role: 'admin' }, { 'Set-Cookie': setSession(req, res, { role: 'admin', id: 'admin' }, 12 * 3600) });
     const isp = await db.findOne('isps', { email });
-    if (!isp || !A.checkPw(pw, isp.pass)) return fail(res, 401, 'Email or password is wrong.');
+    if (isAdminId || !isp || !A.checkPw(pw, isp.pass)) return fail(res, 401, 'Email, phone or password is wrong.');
     return send(res, 200, { ok: true, role: 'isp' }, { 'Set-Cookie': setSession(req, res, { role: 'isp', id: isp._id }) });
   }
   if (p === '/api/logout' && m === 'POST') return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
@@ -210,6 +213,7 @@ async function api(req, res, u) {
     if (p === '/api/isp/profile' && m === 'POST') {
       const b = JSON.parse((await readBody(req, 1e4)).toString() || '{}'), phone = S.phone254(b.phone), business = String(b.business || '').trim().slice(0, 80);
       if (!phone || !business) return fail(res, 400, 'Enter a business name and a valid phone number.');
+      if (phone === ADMIN_PHONE && isp.phone !== ADMIN_PHONE) return fail(res, 403, 'That number is reserved.');
       await db.set('isps', isp._id, { phone, business }); return send(res, 200, { ok: true });
     }
     if (p === '/api/isp/rotate-key' && m === 'POST') { const k = A.rand(24); await db.set('isps', isp._id, { api_key: k }); return send(res, 200, { ok: true, api_key: k }); }
@@ -236,6 +240,7 @@ async function api(req, res, u) {
     }
     if (p === '/api/admin/isps' && m === 'POST') {
       const b = JSON.parse((await readBody(req, 1e4)).toString() || '{}'), email = String(b.email || '').trim().toLowerCase(), phone = S.phone254(b.phone), pw = String(b.password || '');
+      if (phone === ADMIN_PHONE) return fail(res, 403, 'That number is reserved for the operator.');
       if (!String(b.business || '').trim() || !emailOk(email) || !phone || pw.length < 8) return fail(res, 400, 'Business, valid email, Kenyan phone and a password of 8+ characters are required.');
       if (await db.findOne('isps', { email })) return fail(res, 409, 'That email already exists.');
       const isp = { _id: 'isp-' + A.rand(3), business: String(b.business).trim().slice(0, 80), name: String(b.name || b.business).slice(0, 80), email, phone, pass: A.hashPw(pw), api_key: A.rand(24), status: 'active', enforce: true, plan: 'trial', valid_until: new Date(Date.now() + (Number(b.days) || TRIAL_DAYS) * DAY), created: new Date(), last_seen: null };
@@ -252,6 +257,7 @@ async function api(req, res, u) {
     if ((mm = p.match(/^\/api\/admin\/isps\/([\w-]+)\/action$/)) && m === 'POST') {
       const isp = await db.findOne('isps', { _id: mm[1] }); if (!isp) return fail(res, 404, 'Not found.');
       const b = JSON.parse((await readBody(req, 1e4)).toString() || '{}'); let msg = 'Done.';
+      if (isp.phone === ADMIN_PHONE && ['suspend', 'delete', 'password', 'enforce', 'rotate-key'].includes(b.action)) return fail(res, 403, 'This is the protected operator account and cannot be changed this way.');
       if (b.action === 'suspend') await db.set('isps', isp._id, { status: 'suspended' });
       else if (b.action === 'activate') await db.set('isps', isp._id, { status: 'active' });
       else if (b.action === 'extend') { const d = Math.max(-365, Math.min(366, parseInt(b.days) || 0)); const base = Math.max(Date.now(), isp.valid_until ? new Date(isp.valid_until).getTime() : 0); await db.set('isps', isp._id, { valid_until: new Date(d >= 0 ? base + d * DAY : new Date(isp.valid_until).getTime() + d * DAY), plan: isp.plan === 'trial' && d > 0 ? 'monthly' : isp.plan }); }
