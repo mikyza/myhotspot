@@ -1,0 +1,118 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hotspot Billing manual</title>
+<style>:root{--bg:#fff;--ink:#14202b;--mute:#5b6b78;--line:#dfe5ea;--soft:#f3f6f8;--accent:#0b6e5c}@media(prefers-color-scheme:dark){:root{--bg:#10171d;--ink:#e6edf2;--mute:#9aabb8;--line:#27333d;--soft:#18222a;--accent:#47c3a8}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,sans-serif}main{max-width:760px;margin:0 auto;padding:32px 16px 64px}h1{font-size:28px;margin:0 0 4px}h2{font-size:20px;margin:36px 0 8px;padding-top:16px;border-top:1px solid var(--line)}p{margin:8px 0}.step{padding-left:4px}.mute{color:var(--mute)}pre{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;font-size:14px}ul{padding-left:22px}a{color:var(--accent)}</style></head><body><main>
+<h1>Hotspot Billing manual</h1><p class="mute">Version 2.5.0. <a href="/">Back to the dashboard</a> &middot; <a href="/api/isp/download/manual">Download as text</a></p>
+<p>Version 2.5.0. This manual comes in every download and is also on the website (Downloads page).</p>
+<h2>Which download do i need?</h2>
+<ul>
+<li>Windows pack: a Windows PC runs the billing system. Good for trying it out, and for a MikroTik router</li>
+</ul>
+<p>or a &quot;popup test&quot; with no real blocking.</p>
+<ul>
+<li>Linux pack: an Ubuntu/Debian machine runs the billing system AND acts as the router (free, no MikroTik).</li>
+</ul>
+<p>This is the best choice for speed and for real blocking.</p>
+<ul>
+<li>MikroTik pack: you already own a MikroTik router. The billing system runs on a Windows PC or a Linux</li>
+</ul>
+<p>server next to it and creates a hotspot user on the router for every paid customer.</p>
+<h2>Before you start (all packs)</h2>
+<p class="step">a. Sign in on the website (or press &quot;Start free trial&quot;) and open Connect hotspot. Copy your ISP id and API key.</p>
+<p class="step">b. Install the pack (sections 3, 4 or 5).</p>
+<p class="step">c. Open the admin page, paste the ISP id and API key on the activation screen and press Activate.</p>
+<p>The program does nothing until your trial or subscription is active. When it ends the program locks (the website sends reminders by SMS first). Paying on the website unlocks it again within minutes. First admin password: admin123. Change it at once (Admin &gt; Settings &gt; Change admin password). Each pack ships with demo mode ON, so no real money is charged until you turn it off.</p>
+<h2>Windows pack</h2>
+<p class="step">1. Unzip it. Double-click &quot;Install or Update.bat&quot; and press Yes. It starts by itself every time the PC switches on, in the background.</p>
+<p class="step">2. The admin page opens: http://localhost:8080/admin</p>
+<p class="step">3. Customers use http://&lt;this-pc-ip&gt;:8080/ . Give the PC a fixed IP address.</p>
+<p class="step">4. To update: unzip the newer pack and run &quot;Install or Update.bat&quot; again. Your settings and sales stay.</p>
+<p class="step">5. To remove: &quot;Uninstall.bat&quot;.</p>
+<p>Windows alone cannot block internet. To force customers to sign in you need a MikroTik router (section 5) or the Linux pack (section 4). &quot;Popup test mode&quot; (Settings) only lets you see the sign-in popup and payment screens.</p>
+<h2>Linux pack (the machine is the router)</h2>
+<p>You need Ubuntu or Debian with systemd, an internet line, and either a second network port plus a WiFi router in access-point mode, or a WiFi card that supports AP mode.</p>
+<p class="step">1. Install:</p>
+<pre>unzip hotspot-billing-linux.zip -d hb &amp;&amp; cd hb &amp;&amp; sudo bash install.sh</pre>
+<p>Admin page: http://&lt;machine-ip&gt;:8080/admin</p>
+<p class="step">2. Find your port names:</p>
+<pre>ip -br link</pre>
+<p class="step">3. Router version (WiFi router in AP/bridge mode, DHCP off, cable in one of its LAN ports):</p>
+<pre>sudo bash gateway-setup.sh router --lan enx00e04c680001 --wan eth0</pre>
+<p>WiFi-card version (the machine&#x27;s own WiFi card is the hotspot):</p>
+<pre>sudo bash gateway-setup.sh wifi --ssid &quot;My WiFi&quot; --wan eth0 --channel 6 --pass secret123</pre>
+<p class="step">4. Admin &gt; Settings &gt; &quot;Linux gateway&quot;: tick it and press &quot;Save &amp; apply gateway rules&quot;. Make sure MikroTik is off.</p>
+<p class="step">5. Customers get 10.0.0.10-254 and are sent to http://10.0.0.1/ until they pay or enter a code.</p>
+<p class="step">6. Switch it all off again: sudo bash gateway-undo.sh</p>
+<p>Logs: journalctl -u hotspot-billing -f      Data: /opt/hotspot-billing/ If speed is low run: sudo bash speed-doctor.sh   If a customer has no internet run: sudo bash gateway-doctor.sh To update: unzip the new pack and run sudo bash install.sh again.</p>
+<h2>Mikrotik pack</h2>
+<p>The pack holds the billing system for Windows (windows folder) and for Linux (linux folder). Pick the one for the computer that will sit next to your router. It must stay on all the time and have a fixed IP address.</p>
+<p class="step">1. Install the billing system on that computer (section 3 for Windows, &quot;sudo bash install.sh&quot; in the linux folder for Linux). Open the admin page.</p>
+<p class="step">2. Admin &gt; Router setup (MikroTik). Fill in the bridge name, the router IP, this computer&#x27;s IP, the DHCP pool name and an API user and password. Press &quot;Create router script&quot;.</p>
+<p class="step">3. In Winbox open New Terminal, paste the whole script and run it. Every LAN port and the WiFi interface must already be in the bridge you named (check with: /interface bridge port print). The script puts a hotspot on the bridge, allows one device per connect code, blocks sharing, opens the API for this program and lets customers reach the buy page before signing in.</p>
+<p class="step">4. Press &quot;Download branded login.html&quot; and upload that file to the router&#x27;s hotspot folder (Files &gt; hotspot).</p>
+<p class="step">5. Admin &gt; Settings &gt; MikroTik: tick &quot;Create hotspot users on a MikroTik router&quot;, enter router IP, API port 8728, the API user and password, and press &quot;Save &amp; test router connection&quot;. It must say it connected.</p>
+<p class="step">6. Buy a package with your own phone to test, then turn demo mode off.</p>
+<p>Speed limits: give a package a &quot;Router profile&quot; (for example 5mbps) that exists on the router. Data caps and per-package speed limits set in the package form work in the Linux gateway; on MikroTik use router profiles.</p>
+<h2>Settings you must fill in (admin &gt; settings)</h2>
+<ul>
+<li>Business name, tagline, support phone / WhatsApp / email (shown to customers), admin phone (password reset).</li>
+<li>PayHero: API username, password, channel id. Customers pay you directly. Leave &quot;Public URL&quot; empty.</li>
+<li>Ping Africa SMS: URL and API key, then press &quot;Auto-detect Ping Africa format&quot; or &quot;Save &amp; send test SMS&quot;.</li>
+<li>Packages: hotspot packages (connect codes) and monthly packages (normal WiFi accounts).</li>
+<li>Turn OFF demo mode when you are ready for real money.</li>
+</ul>
+<h2>Daily use</h2>
+<ul>
+<li>Customer pays by M-Pesa on the sign-in page, gets a code by SMS and (in the Linux gateway) is connected at</li>
+</ul>
+<p>once and sent to a page showing the code and the connection status.</p>
+<ul>
+<li>Customer who lost the code: reconnect box (M-Pesa receipt or code). &quot;Paid but no code&quot;: Admin &gt; Recover.</li>
+<li>Monthly customers: Admin &gt; Accounts. Add the customer, they pay against their account number, their device</li>
+</ul>
+<p>is remembered and connects without signing in.</p>
+<ul>
+<li>Usage per client: Admin &gt; Usage. Speed: Admin &gt; Speed.</li>
+</ul>
+<h2>Extras (linux gateway)</h2>
+<ul>
+<li>Free TikTok: Settings &gt; &quot;Free TikTok trial&quot;. 15 minutes of TikTok only, once per device every 24 hours.</li>
+</ul>
+<p>Works by TikTok&#x27;s addresses, so a few shared addresses may open other sites. Needs dnsmasq 2.87 or newer for automatic address learning.</p>
+<ul>
+<li>Anti-sharing: a connected customer cannot share the connection with other devices by phone hotspot.</li>
+</ul>
+<p>Packages marked &quot;Allow sharing&quot; (router plans) are exempt, so one router can serve many people.</p>
+<ul>
+<li>Backups: Admin &gt; Cloud &amp; license &gt; Backups (daily automatic, plus an encrypted copy on the website).</li>
+<li>Alerts: SMS to the admin phone when disk is full, PayHero keeps failing, the firewall is missing, etc.</li>
+<li>Support: Admin &gt; Cloud &amp; license &gt; Help &gt; Send support info (no keys or passwords are sent).</li>
+</ul>
+<h2>Control it from the cloud (remote control)</h2>
+<p>Sign in on the website. ISP owners open Remote control; the software provider opens an ISP and its Remote control tab. Everything you change there is sent to the billing system and applied within about 20 seconds (the page says &quot;Hotspot online&quot;). If the hotspot is offline the change waits up to 7 days.</p>
+<ul>
+<li>Settings: business and support details, demo mode, SMS text, free TikTok, MikroTik connection, alerts.</li>
+<li>Packages: add, edit and delete packages (price, time, data cap, speed, sharing).</li>
+<li>Buttons: re-apply router rules, test router, backup now, send support info, sync now, restart program.</li>
+<li>Provider only: payment (PayHero) and SMS keys, the Linux gateway ports, the admin password. These are</li>
+</ul>
+<p>write-only: they are never shown again after they are saved.</p>
+<ul>
+<li>The provider can also edit an ISP&#x27;s profile (business, email, phone, plan, valid until), suspend or extend it.</li>
+<li>Customers&#x27; own records (codes, payments, monthly accounts) cannot be edited from the cloud.</li>
+</ul>
+<p>The Recent commands list shows each change as Waiting, Running, Done or Failed with the reason. The hotspot only runs a fixed list of commands. There is no way to run anything else on the machine. The connection to the website itself (Cloud &amp; license) can only be changed on the hotspot.</p>
+<h2>Problems</h2>
+<ul>
+<li>Cannot open the admin page: check the machine IP and port 8080; Linux: journalctl -u hotspot-billing -f</li>
+<li>&quot;Subscription ended&quot;: pay on the website; it unlocks within minutes. No contact with the website for more than</li>
+</ul>
+<p>2 days after the paid-until date also locks the program.</p>
+<ul>
+<li>Customers see a certificate warning on https sites before the sign-in page: unavoidable. Most phones open the</li>
+</ul>
+<p>sign-in popup by themselves.</p>
+<ul>
+<li>Payment taken but no code: Admin &gt; Recover, or ask support.</li>
+<li>A device that changes its WiFi address (&quot;private address&quot;) may need to be re-linked by support.</li>
+<li>Still stuck: Send support info (section 8) and contact the software provider.</li>
+</ul></main></body></html>

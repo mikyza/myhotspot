@@ -1,0 +1,9 @@
+{
+  "name": "hotspot-cloud",
+  "version": "1.0.0",
+  "description": "Operator website + ISP dashboards for Hotspot Billing",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "test": "node test.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "mongodb": "^6.9.0" }
+}
